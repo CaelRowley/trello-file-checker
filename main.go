@@ -1,45 +1,72 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 
 	"github.com/joho/godotenv"
 )
 
+type Card struct {
+	Name        string
+	Attachments []Attachment
+}
+
+type Attachment struct {
+	Name string
+	Date string
+}
+
+var (
+	apiKey  string
+	token   string
+	boardID string
+)
+
 func main() {
 	err := godotenv.Load(".env")
 	if err != nil {
-		panic(".env is missing! " + err.Error())
+		log.Fatal(err)
 	}
-	apiKey, ok := os.LookupEnv("API_KEY")
-	if !ok {
-		panic("API_KEY is missing!")
-	}
-	token, ok := os.LookupEnv("TOKEN")
-	if !ok {
-		panic("TOKEN is missing!")
-	}
-	boardId, ok := os.LookupEnv("BOARD_ID")
-	if !ok {
-		panic("BOARD_ID is missing!")
-	}
+	apiKey = getEnv("API_KEY")
+	token = getEnv("TOKEN")
+	boardID = getEnv("BOARD_ID")
 
-	requestUrl := fmt.Sprintf("https://api.trello.com/1/boards/%s/cards?key=%s&token=%s&fields=all&attachments=true", boardId, apiKey, token)
+	cards := getCards()
+	fmt.Println(cards)
+}
+
+func getCards() []Card {
+	requestUrl := fmt.Sprintf("https://api.trello.com/1/boards/%s/cards?key=%s&token=%s&fields=all&attachments=true",
+		boardID, apiKey, token)
 	response, err := http.Get(requestUrl)
 	if err != nil {
-		panic("Error: " + err.Error())
+		log.Fatal(err)
 	}
 
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		panic("Error reading response body: " + err.Error())
+		log.Fatal("Error reading response body: " + err.Error())
 	}
 
-	fmt.Println("Response Status:", response.Status)
-	fmt.Println("Response Body:", string(body))
+	var cards []Card
+	if err := json.Unmarshal(body, &cards); err != nil {
+		fmt.Println("Error parsing JSON:", err)
+	}
+
+	return cards
+}
+
+func getEnv(key string) string {
+	val, ok := os.LookupEnv(key)
+	if !ok {
+		log.Fatal(key + " is missing from .env!")
+	}
+	return val
 }
