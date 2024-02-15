@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -37,7 +39,7 @@ func main() {
 	boardID = getEnv("BOARD_ID")
 
 	cards := getCards()
-	fmt.Println(cards)
+	exportFileData(cards)
 }
 
 func getCards() []Card {
@@ -61,6 +63,30 @@ func getCards() []Card {
 	}
 
 	return cards
+}
+
+func exportFileData(data []Card) {
+	file, err := os.Create(time.Now().Format("2006-01-02 15:04:05") + ".csv")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	err = writer.Write([]string{"Board", "File", "Date"})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, card := range data {
+		for _, attachment := range card.Attachments {
+			err = writer.Write([]string{boardID, attachment.Name, attachment.Date})
+		}
+	}
+
+	fmt.Println(file.Name())
 }
 
 func getEnv(key string) string {
