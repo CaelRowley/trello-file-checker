@@ -29,6 +29,12 @@ type Attachment struct {
 	Date string
 }
 
+type Export struct {
+	BoardName string
+	FileName  string
+	Date      string
+}
+
 var (
 	apiKey   string
 	token    string
@@ -44,9 +50,23 @@ func main() {
 	token = getEnv("TOKEN")
 	boardIDs = strings.Split(getEnv("BOARD_IDS"), ",")
 
-	cards := getCards(boardIDs[0])
-	fmt.Println(cards)
-	// exportFileData(cards)
+	var exportData = []Export{}
+
+	for _, boardID := range boardIDs {
+		cards := getCards(boardID)
+		for _, card := range cards {
+			for _, attachment := range card.Attachments {
+				export := Export{
+					BoardName: card.BoardName,
+					FileName:  attachment.Name,
+					Date:      attachment.Date,
+				}
+				exportData = append(exportData, export)
+			}
+		}
+	}
+
+	exportFileData(exportData)
 }
 
 func getBoard(boardID string) Board {
@@ -98,7 +118,7 @@ func getCards(boardID string) []Card {
 	return cards
 }
 
-func exportFileData(data []Card) {
+func exportFileData(data []Export) {
 	file, err := os.Create(time.Now().Format("2006-01-02 15:04:05") + ".csv")
 	if err != nil {
 		log.Fatal(err)
@@ -113,13 +133,9 @@ func exportFileData(data []Card) {
 		log.Fatal(err)
 	}
 
-	for _, card := range data {
-		for _, attachment := range card.Attachments {
-			err = writer.Write([]string{boardIDs[0], attachment.Name, attachment.Date})
-		}
+	for _, row := range data {
+		err = writer.Write([]string{row.BoardName, row.FileName, row.Date})
 	}
-
-	fmt.Println(file.Name())
 }
 
 func getEnv(key string) string {
