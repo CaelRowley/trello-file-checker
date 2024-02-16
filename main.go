@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -19,6 +20,7 @@ type Board struct {
 
 type Card struct {
 	Name        string
+	BoardName   string
 	Attachments []Attachment
 }
 
@@ -28,9 +30,9 @@ type Attachment struct {
 }
 
 var (
-	apiKey  string
-	token   string
-	boardID string
+	apiKey   string
+	token    string
+	boardIDs []string
 )
 
 func main() {
@@ -40,11 +42,10 @@ func main() {
 	}
 	apiKey = getEnv("API_KEY")
 	token = getEnv("TOKEN")
-	boardID = getEnv("BOARD_ID")
+	boardIDs = strings.Split(getEnv("BOARD_IDS"), ",")
 
-	board := getBoard(boardID)
-	fmt.Println(board.Name)
-	// cards := getCards()
+	cards := getCards(boardIDs[0])
+	fmt.Println(cards)
 	// exportFileData(cards)
 }
 
@@ -69,7 +70,7 @@ func getBoard(boardID string) Board {
 	return board
 }
 
-func getCards() []Card {
+func getCards(boardID string) []Card {
 	requestUrl := fmt.Sprintf("https://api.trello.com/1/boards/%s/cards?key=%s&token=%s&fields=all&attachments=true",
 		boardID, apiKey, token)
 	response, err := http.Get(requestUrl)
@@ -87,6 +88,11 @@ func getCards() []Card {
 	var cards []Card
 	if err := json.Unmarshal(body, &cards); err != nil {
 		log.Fatal("Error parsing JSON:", err)
+	}
+
+	board := getBoard(boardID)
+	for i := range cards {
+		cards[i].BoardName = board.Name
 	}
 
 	return cards
@@ -109,7 +115,7 @@ func exportFileData(data []Card) {
 
 	for _, card := range data {
 		for _, attachment := range card.Attachments {
-			err = writer.Write([]string{boardID, attachment.Name, attachment.Date})
+			err = writer.Write([]string{boardIDs[0], attachment.Name, attachment.Date})
 		}
 	}
 
