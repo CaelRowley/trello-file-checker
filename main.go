@@ -13,6 +13,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type Board struct {
+	Name string
+}
+
 type Card struct {
 	Name        string
 	Attachments []Attachment
@@ -38,8 +42,31 @@ func main() {
 	token = getEnv("TOKEN")
 	boardID = getEnv("BOARD_ID")
 
-	cards := getCards()
-	exportFileData(cards)
+	board := getBoard(boardID)
+	fmt.Println(board.Name)
+	// cards := getCards()
+	// exportFileData(cards)
+}
+
+func getBoard(boardID string) Board {
+	requestUrl := fmt.Sprintf("https://api.trello.com/1/boards/%s?key=%s&token=%s", boardID, apiKey, token)
+	response, err := http.Get(requestUrl)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal("Error reading response body: " + err.Error())
+	}
+
+	var board Board
+	err = json.Unmarshal(body, &board)
+	if err != nil {
+		log.Fatal("Error parsing JSON:", err)
+	}
+
+	return board
 }
 
 func getCards() []Card {
@@ -59,7 +86,7 @@ func getCards() []Card {
 
 	var cards []Card
 	if err := json.Unmarshal(body, &cards); err != nil {
-		fmt.Println("Error parsing JSON:", err)
+		log.Fatal("Error parsing JSON:", err)
 	}
 
 	return cards
