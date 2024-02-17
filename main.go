@@ -19,6 +19,7 @@ type Board struct {
 }
 
 type Card struct {
+	ID          string
 	Name        string
 	BoardName   string
 	Attachments []Attachment
@@ -31,6 +32,7 @@ type Attachment struct {
 
 type Export struct {
 	BoardName string
+	CardID    string
 	FileName  string
 	Date      string
 }
@@ -53,11 +55,23 @@ func main() {
 	var exportData = []Export{}
 
 	for _, boardID := range boardIDs {
-		cards := getCards(boardID)
+		var lastCardID string
+		boardHasCards := true
+		var cards = []Card{}
+		for boardHasCards {
+			newCards := getCards(boardID, lastCardID)
+			if len(newCards) > 0 {
+				lastCardID = newCards[len(newCards)-1].ID
+				cards = append(cards, newCards...)
+			} else {
+				boardHasCards = false
+			}
+		}
 		for _, card := range cards {
 			for _, attachment := range card.Attachments {
 				export := Export{
 					BoardName: card.BoardName,
+					CardID:    card.ID,
 					FileName:  attachment.Name,
 					Date:      attachment.Date,
 				}
@@ -75,6 +89,7 @@ func getBoard(boardID string) Board {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -90,14 +105,16 @@ func getBoard(boardID string) Board {
 	return board
 }
 
-func getCards(boardID string) []Card {
-	requestUrl := fmt.Sprintf("https://api.trello.com/1/boards/%s/cards?key=%s&token=%s&fields=all&attachments=true",
+func getCards(boardID string, lastCardID string) []Card {
+	requestUrl := fmt.Sprintf("https://api.trello.com/1/boards/%s/cards?key=%s&token=%s&fields=all&attachments=true&limit=3",
 		boardID, apiKey, token)
+	if lastCardID != "" {
+		requestUrl += "&before=" + lastCardID
+	}
 	response, err := http.Get(requestUrl)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
@@ -128,13 +145,16 @@ func exportFileData(data []Export) {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	err = writer.Write([]string{"Board", "File", "Date"})
+	err = writer.Write([]string{"Board", "Card ID", "File", "Date"})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	for _, row := range data {
-		err = writer.Write([]string{row.BoardName, row.FileName, row.Date})
+		err = writer.Write([]string{row.BoardName, row.CardID, row.FileName, row.Date})
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
