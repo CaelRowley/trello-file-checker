@@ -10,8 +10,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/joho/godotenv"
 )
 
 type Board struct {
@@ -51,13 +49,9 @@ var (
 )
 
 func main() {
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	apiKey = getEnv("API_KEY")
-	token = getEnv("TOKEN")
-	boardIDs = strings.Split(getEnv("BOARD_IDS"), ",")
+	apiKey = getEnv("TRELLO_API_KEY")
+	token = getEnv("TRELLO_TOKEN")
+	boardIDs = strings.Split(getEnv("TRELLO_BOARD_IDS"), ",")
 
 	var exportData = []Export{}
 
