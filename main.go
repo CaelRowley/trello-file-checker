@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 )
 
 type Board struct {
@@ -158,7 +157,7 @@ func getCardsOnList(listID string, lastCardID string) []Card {
 }
 
 func exportFileData(data []Export) {
-	file, err := os.Create(time.Now().Format("2006-01-02 15:04:05") + ".csv")
+	file, err := os.Create("output.csv")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -178,6 +177,13 @@ func exportFileData(data []Export) {
 			log.Fatal(err)
 		}
 	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Error getting current working directory:", err)
+		return
+	}
+	fmt.Println(fmt.Sprintf("File: %s/%s", cwd, file.Name()))
 }
 
 func getEnv(key string) string {
