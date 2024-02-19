@@ -36,6 +36,7 @@ type Attachment struct {
 type Export struct {
 	BoardName string
 	ListName  string
+	CardName  string
 	CardID    string
 	FileName  string
 	Date      string
@@ -75,6 +76,7 @@ func main() {
 					export := Export{
 						BoardName: board.Name,
 						ListName:  list.Name,
+						CardName:  card.Name,
 						CardID:    card.ID,
 						FileName:  attachment.Name,
 						Date:      attachment.Date,
@@ -157,7 +159,7 @@ func getCardsOnList(listID string, lastCardID string) []Card {
 }
 
 func exportFileData(data []Export) {
-	file, err := os.Create("output.csv")
+	file, err := os.Create("attachments.csv")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -166,13 +168,13 @@ func exportFileData(data []Export) {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	err = writer.Write([]string{"Board", "List", "Card ID", "File", "Date"})
+	err = writer.Write([]string{"Board", "List", "Card Name", "Card ID", "File", "Date"})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	for _, row := range data {
-		err = writer.Write([]string{row.BoardName, row.ListName, row.CardID, row.FileName, row.Date})
+		err = writer.Write([]string{row.BoardName, row.ListName, row.CardName, row.CardID, row.FileName, row.Date})
 		if err != nil {
 			log.Fatal(err)
 		}
