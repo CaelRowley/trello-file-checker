@@ -18,10 +18,16 @@ type Board struct {
 	Name string
 }
 
+type List struct {
+	ID   string
+	Name string
+}
+
 type Card struct {
 	ID          string
 	Name        string
 	BoardName   string
+	ListName    string
 	Attachments []Attachment
 }
 
@@ -32,6 +38,7 @@ type Attachment struct {
 
 type Export struct {
 	BoardName string
+	ListName  string
 	CardID    string
 	FileName  string
 	Date      string
@@ -55,27 +62,32 @@ func main() {
 	var exportData = []Export{}
 
 	for _, boardID := range boardIDs {
-		var lastCardID string
-		boardHasCards := true
-		var cards = []Card{}
-		for boardHasCards {
-			newCards := getCards(boardID, lastCardID)
-			if len(newCards) > 0 {
-				lastCardID = newCards[len(newCards)-1].ID
-				cards = append(cards, newCards...)
-			} else {
-				boardHasCards = false
-			}
-		}
-		for _, card := range cards {
-			for _, attachment := range card.Attachments {
-				export := Export{
-					BoardName: card.BoardName,
-					CardID:    card.ID,
-					FileName:  attachment.Name,
-					Date:      attachment.Date,
+		board := getBoard(boardID)
+		lists := getListsOnBoard(boardID)
+		for _, list := range lists {
+			var lastCardID string
+			listHasCards := true
+			var cards = []Card{}
+			for listHasCards {
+				newCards := getCardsOnList(list.ID, lastCardID)
+				if len(newCards) > 0 {
+					lastCardID = newCards[0].ID
+					cards = append(cards, newCards...)
+				} else {
+					listHasCards = false
 				}
-				exportData = append(exportData, export)
+			}
+			for _, card := range cards {
+				for _, attachment := range card.Attachments {
+					export := Export{
+						BoardName: board.Name,
+						ListName:  list.Name,
+						CardID:    card.ID,
+						FileName:  attachment.Name,
+						Date:      attachment.Date,
+					}
+					exportData = append(exportData, export)
+				}
 			}
 		}
 	}
@@ -105,9 +117,30 @@ func getBoard(boardID string) Board {
 	return board
 }
 
-func getCards(boardID string, lastCardID string) []Card {
-	requestUrl := fmt.Sprintf("https://api.trello.com/1/boards/%s/cards?key=%s&token=%s&fields=all&attachments=true&limit=3",
-		boardID, apiKey, token)
+func getListsOnBoard(boardID string) []List {
+	requestUrl := fmt.Sprintf("https://api.trello.com/1/boards/%s/lists?key=%s&token=%s", boardID, apiKey, token)
+	response, err := http.Get(requestUrl)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal("Error reading response body: " + err.Error())
+	}
+
+	var lists []List
+	err = json.Unmarshal(body, &lists)
+	if err != nil {
+		log.Fatal("Error parsing JSON:", err)
+	}
+
+	return lists
+}
+
+func getCardsOnList(listID string, lastCardID string) []Card {
+	requestUrl := fmt.Sprintf("https://api.trello.com/1/lists/%s/cards?key=%s&token=%s&attachments=true", listID, apiKey, token)
 	if lastCardID != "" {
 		requestUrl += "&before=" + lastCardID
 	}
@@ -127,11 +160,6 @@ func getCards(boardID string, lastCardID string) []Card {
 		log.Fatal("Error parsing JSON:", err)
 	}
 
-	board := getBoard(boardID)
-	for i := range cards {
-		cards[i].BoardName = board.Name
-	}
-
 	return cards
 }
 
@@ -145,13 +173,13 @@ func exportFileData(data []Export) {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	err = writer.Write([]string{"Board", "Card ID", "File", "Date"})
+	err = writer.Write([]string{"Board", "List", "Card ID", "File", "Date"})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	for _, row := range data {
-		err = writer.Write([]string{row.BoardName, row.CardID, row.FileName, row.Date})
+		err = writer.Write([]string{row.BoardName, row.ListName, row.CardID, row.FileName, row.Date})
 		if err != nil {
 			log.Fatal(err)
 		}
