@@ -1,5 +1,4 @@
-# Trello Attachment Extractor
-
+# Trello File Checker
 This script is a tool created in Go to query multiple Trello boards and generate a CSV file containing information about all attachments on all cards across all lists on those boards.
 
 ## Requirements
