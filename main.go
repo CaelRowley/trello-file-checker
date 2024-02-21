@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 type Board struct {
@@ -52,8 +53,9 @@ func main() {
 	apiKey = getEnv("TRELLO_API_KEY")
 	token = getEnv("TRELLO_TOKEN")
 	boardIDs = strings.Split(getEnv("TRELLO_BOARD_IDS"), ",")
-
 	var exportData = []Export{}
+
+	loadingChannel := animateLoading()
 
 	for _, boardID := range boardIDs {
 		board := getBoard(boardID)
@@ -87,6 +89,8 @@ func main() {
 		}
 	}
 
+	close(loadingChannel)
+	fmt.Print("\r                        \r")
 	exportFileData(exportData)
 }
 
@@ -194,4 +198,25 @@ func getEnv(key string) string {
 		log.Fatal(key + " is missing from .env!")
 	}
 	return val
+}
+
+func animateLoading() chan bool {
+	finishedLoading := make(chan bool)
+	dots := []string{"Fetching data   ", "Fetching data.  ", "Fetching data.. ", "Fetching data..."}
+
+	go func() {
+		for {
+			select {
+			case <-finishedLoading:
+				return
+			default:
+				for _, dot := range dots {
+					fmt.Printf("\r%s", dot)
+					time.Sleep(200 * time.Millisecond)
+				}
+			}
+		}
+	}()
+
+	return finishedLoading
 }
