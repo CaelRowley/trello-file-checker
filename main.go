@@ -44,53 +44,16 @@ type Export struct {
 }
 
 var (
-	apiKey   string
-	token    string
-	boardIDs []string
+	apiKey   = getEnv("TRELLO_API_KEY")
+	token    = getEnv("TRELLO_TOKEN")
+	boardIDs = strings.Split(getEnv("TRELLO_BOARD_IDS"), ",")
 )
 
 func main() {
-	apiKey = getEnv("TRELLO_API_KEY")
-	token = getEnv("TRELLO_TOKEN")
-	boardIDs = strings.Split(getEnv("TRELLO_BOARD_IDS"), ",")
-	var exportData = []Export{}
-
 	loadingChannel := animateLoading()
+	exportData := getExportData()
+	finishLoading(loadingChannel)
 
-	for _, boardID := range boardIDs {
-		board := getBoard(boardID)
-		lists := getListsOnBoard(boardID)
-		for _, list := range lists {
-			var lastCardID string
-			listHasCards := true
-			var cards = []Card{}
-			for listHasCards {
-				newCards := getCardsOnList(list.ID, lastCardID)
-				if len(newCards) > 0 {
-					lastCardID = newCards[0].ID
-					cards = append(cards, newCards...)
-				} else {
-					listHasCards = false
-				}
-			}
-			for _, card := range cards {
-				for _, attachment := range card.Attachments {
-					export := Export{
-						BoardName: board.Name,
-						ListName:  list.Name,
-						CardName:  card.Name,
-						CardID:    card.ID,
-						FileName:  attachment.Name,
-						Date:      attachment.Date,
-					}
-					exportData = append(exportData, export)
-				}
-			}
-		}
-	}
-
-	close(loadingChannel)
-	fmt.Print("\r                        \r")
 	exportFileData(exportData)
 }
 
@@ -162,6 +125,43 @@ func getCardsOnList(listID string, lastCardID string) []Card {
 	return cards
 }
 
+func getExportData() []Export {
+	var exportData = []Export{}
+	for _, boardID := range boardIDs {
+		board := getBoard(boardID)
+		lists := getListsOnBoard(boardID)
+		for _, list := range lists {
+			var lastCardID string
+			listHasCards := true
+			var cards = []Card{}
+			for listHasCards {
+				newCards := getCardsOnList(list.ID, lastCardID)
+				if len(newCards) > 0 {
+					lastCardID = newCards[0].ID
+					cards = append(cards, newCards...)
+				} else {
+					listHasCards = false
+				}
+			}
+			for _, card := range cards {
+				for _, attachment := range card.Attachments {
+					export := Export{
+						BoardName: board.Name,
+						ListName:  list.Name,
+						CardName:  card.Name,
+						CardID:    card.ID,
+						FileName:  attachment.Name,
+						Date:      attachment.Date,
+					}
+					exportData = append(exportData, export)
+				}
+			}
+		}
+	}
+
+	return exportData
+}
+
 func exportFileData(data []Export) {
 	file, err := os.Create("attachments.csv")
 	if err != nil {
@@ -219,4 +219,9 @@ func animateLoading() chan bool {
 	}()
 
 	return finishedLoading
+}
+
+func finishLoading(loadingChannel chan bool) {
+	close(loadingChannel)
+	fmt.Print("\r\033[K")
 }
